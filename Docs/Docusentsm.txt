@@ -1,0 +1,30 @@
+Draw2DPoly
+
+P1x	;16 bit unsigned int (32768 is middle of screen)
+P1y
+P2x
+P2y
+P3x
+P3y
+Bitpatt. 8 bits
+Screen selector ($00 or $01) (for double buffering)
+
+
+Mainline AC and sublines AB and BC:
+
+A,B,C: (A on top, C on bottom of poly) 
+
+AB to AC
+BC to AC
+
+
+
+
+Naming convention:
+
+
+Compare
+	Compare.InnerLoop
+
+Arrange
+

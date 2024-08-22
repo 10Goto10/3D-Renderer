@@ -1,0 +1,107 @@
+LS = P1x
+LE = P1x
+
+LSg = P2x
+
+f = (P2y-P1y)/(P3y-P1y)
+LEg = P1x*(1-f)+P3x*f
+
+if (LSg > LEg) {
+	Switch LSg and LEg
+}
+
+MLS = (|LSg-P1x|)/(P2y-P1y)
+if (LSg < P1x){
+	MLSn = true
+}
+Else{
+	MLSn = false
+}
+
+MLE = (|LEg-P1x|)/(P2y-P1y)
+if (LEg < P1x){
+	MLEn = true
+}
+Else{
+	MLEn = false
+}
+
+CL = <($8000 < P1y < $80c7)
+LL = <(($8000 < P2y < $80c7)-CL)
+
+if (P1y < $8000){
+	if (MLSn){
+		LS = LS+(MLS*($8000-P1y))
+	}
+	else{
+		LS = LS-(MLS*($8000-P1y))
+	}
+	if (MLEn){
+		LE = LE+(MLE*($8000-P1y))
+	}
+	else{
+		LE = LE-(MLE*($8000-P1y))
+	}
+}
+
+for LL = LL to 0{
+
+	DRAW LINE
+
+	if (MLSn){
+		LS = LS-MLS
+	}
+	else{
+		LS = LS+MLS
+	}
+
+	if (MLEn){
+		LE = LE-MLE
+	}
+	else{
+		LE = LS+MLE
+	}
+}
+
+
+; Now do everything for the second (bottom) Part of the Polygon:
+;Important: The Variables from the Above code are still useful for us here, but their name may make a bit less sense here.
+
+LS = LSg
+LE = LEg
+LL = P3y-P2y
+
+MLS = (|P3x-LSg|)/(P3y-P2y)
+if (P3x < LSg){
+	MLSn = true
+}
+Else{
+	MLSn = false
+}
+
+MLE = (|P3x-LEg|)/(P3y-P2y)
+if (P3x < LEg){
+	MLEn = true
+}
+Else{
+	MLEn = false
+}
+
+for LL = LL to 0{
+
+	DRAW LINE
+
+	if (MLSn){
+		LS = LS-MLS
+	}
+	else{
+		LS = LS+MLS
+	}
+
+	if (MLEn){
+		LE = LE-MLE
+	}
+	else{
+		LE = LS+MLE
+	}
+}

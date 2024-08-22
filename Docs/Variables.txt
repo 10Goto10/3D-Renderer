@@ -1,0 +1,15 @@
+Abbr.	Desc.		Type
+
+LS	Line Start	16 bit.8bit
+LE	Line End	16 bit.8bit
+MLS	Movement LS	16bit.8bit
+MLE	Movement LE	16bit.8bit
+MLSn	MLS negative	Lowest bit
+MLEn	MLE negative	Lowest bit
+LSg	LS goal		16 bit.
+LEg	LE goal		16 bit.
+CL	Current Line	8bit.
+LL	Last Line	8bit.
+f	factor		.8bit
+
+DEPRECIATED

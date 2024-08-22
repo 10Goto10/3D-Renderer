@@ -1,0 +1,3 @@
+1. Make list of P1 to P3's ranks in $02-$04 (lowest first). If all are equal, A is in $04, B is in $03, C is in $02
+2. 
+3. Do sbc, then if carry clear, invert with xor and -1 (i think)

@@ -1,0 +1,1211 @@
+00001  0000             
+00002  0001             BITMAP=    $4000
+00003  0001             CHARRAM=   $6000
+00004  0001             COLORRAM=  $D800
+00005  0001             
+00006  0001             
+00007  0001             ; 10 SYS2064
+00008  0001             
+00009  0001             *=$0801
+00010  0801             
+00011  0801  0B 08 0A              BYTE    $0B, $08, $0A, $00, $9E, $32, $30, $36, $34, $00, $00, $00
+00012  080D             
+00013  080D             
+00014  080D             *=$0810
+00015  0810  78                    SEI
+00016  0811             
+00017  0811  A9 BB                 LDA #%10111011          ;SWITCH TO MULTICOLOR BITMAP MODE, DEFAULT : %10011011
+00018  0813  8D 11 D0              STA $D011               ;
+00019  0816                        ;
+00020  0816  A9 18                 LDA #%00011000          ;DEFAULT:00001000
+00021  0818  8D 16 D0              STA $D016               ;
+00022  081B             
+00023  081B  AD 00 DD              LDA $DD00               ;CHANGE VIC MEMORY ACCESS TO BANK2: $4000-$7FFF
+00024  081E  29 FC                 AND #%11111100
+00025  0820  09 02                 ORA #%00000010
+00026  0822  8D 00 DD              STA $DD00
+00027  0825             
+00028  0825  A9 80                 LDA #%10000000          ;MAKE SCREEN RAM(FOR COLORS 1 AND 2) AT VIC ADDRESS + $2000
+00029  0827  8D 18 D0              STA $D018
+00030  082A             
+00031  082A  A9 7F                 LDA #%01111111          ;SWITCH OFF INTERRUPT SIGNALS FROM CIA-1
+00032  082C  8D 0D DC              STA $DC0D
+00033  082F             
+00034  082F  A5 01                 LDA $0001               ;SWITCH TO MEMORY MAP WITH ONLY I/O AND RAM
+00035  0831  29 F8                 AND #%11111000
+00036  0833  09 05                 ORA #%00000101
+00037  0835  85 01                 STA $0001
+00038  0837             
+00039  0837  A9 00                 LDA #$00
+00040  0839  8D 21 D0              STA $D021
+00041  083C  A9 12                 LDA #$12
+00042  083E  20 E6 0D              JSR CHARRAMINIT
+00043  0841  A9 55                 LDA #$55
+00044  0843  20 D0 0D              JSR COLORRAMINIT
+00045  0846                        ;LDA #%00011011
+00046  0846  A9 00                 LDA #%00000000
+00047  0848  20 FC 0D              JSR BITMAPINIT
+00048  084B             
+00049  084B             LOOP
+00050  084B             ;        INC @TEST
+00051  084B             ;        LDA @TEST
+00052  084B  A9 AA                 LDA #%10101010
+00053  084D  20 59 08              JSR DRAW2DPOLY
+00054  0850             ;        INC MP1X
+00055  0850             ;        INC MP1X
+00056  0850             ;        DEC MP2Y
+00057  0850             ;        DEC MP2Y
+00058  0850             ;        DEC MP2Y
+00059  0850  A9 00                 LDA #$00
+00060  0852  20 FC 0D              JSR BITMAPINIT
+00061  0855  4C 4B 08              JMP LOOP
+00062  0858                        
+00063  0858             @TEST
+00064  0858  00                    BYTE $00
+00065  0859                        
+00066  0859             
+00067  0859                        
+00068  0859                        
+00069  0859             
+00070  0859             
+00071  0859             
+00072  0859             
+00073  0859             DRAW2DPOLY ;ZEROPAGE RESERVED:     $02 TO $04 FOR RANKING
+00074  0859                        ;                       $10 TO $1B FOR SORTED POINT DATA
+00075  0859  85 31                 STA @P
+00076  085B                        ;JMP @DRAWLINE ;FOR TESTING
+00077  085B             ;RANKING ENTRY ONE: P1Y'S RANK IN LOWNESS, SO $00 STORED IN $02 WOULD BE P1Y=LOWEST NUMBERLOWEST NUMBER
+00078  085B  A2 00                 LDX #$00        ;X IS RANKING OF P1
+00079  085D  A0 01                 LDY #$01        ;Y IS USED AS P2'S RANK, DON'T ASK WHY IT'S 1 AT FIRST, TOO LAZY TO EXPLAIN
+00080  085F  A9 02                 LDA #$02        ;WE USE $04 DIRECTLY, SINCE WE'RE ALREADY OUT OF REGISTERS, THAT'S WHY WE LOVE THE 6502
+00081  0861  85 04                 STA $04
+00082  0863             
+00083  0863  AD 2B 0D              LDA MP1Y+1
+00084  0866  CD 2F 0D              CMP MP2Y+1
+00085  0869  D0 06                 BNE @SKIP1
+00086  086B  AD 2A 0D              LDA MP1Y
+00087  086E  CD 2E 0D              CMP MP2Y
+00088  0871             @SKIP1     ;SKIP COMPARING SMALL NUMBERS IF THE BIGGIES ARE DIFFERENT
+00089  0871  90 02                 BCC @SKIP2
+00090  0873  E8                    INX
+00091  0874  88                    DEY             ;DECREASE P2'S RANK IF P2Y IS LOWER THAN P1Y
+00092  0875             @SKIP2
+00093  0875             
+00094  0875                        
+00095  0875  AD 2B 0D              LDA MP1Y+1      ;NOW COMPARE P1Y WITH P3Y, AGAIN, IF THEY'RE EQUAL, WE PRETEND P1Y IS BIGGER
+00096  0878  CD 33 0D              CMP MP3Y+1
+00097  087B  D0 06                 BNE @SKIP3
+00098  087D  AD 2A 0D              LDA MP1Y
+00099  0880  CD 32 0D              CMP MP3Y
+00100  0883             @SKIP3
+00101  0883  90 03                 BCC @SKIP4
+00102  0885  E8                    INX
+00103  0886  C6 04                 DEC $04         ;DECREASE P3'S RANK IF P3Y IS LOWER THAN P1Y
+00104  0888             @SKIP4
+00105  0888             
+00106  0888  86 02                 STX $02         ;STORE P1'S RANK
+00107  088A             
+00108  088A             ;NOW JUST COMPARE P2Y AND P3Y
+00109  088A                        
+00110  088A  AD 2F 0D              LDA MP2Y+1      ;NOW COMPARE P2Y WITH P3Y, AGAIN, IF THEY'RE EQUAL, WE PRETEND P2Y IS BIGGER
+00111  088D  CD 33 0D              CMP MP3Y+1
+00112  0890  D0 06                 BNE @SKIP5
+00113  0892  AD 2E 0D              LDA MP2Y
+00114  0895  CD 32 0D              CMP MP3Y
+00115  0898             @SKIP5
+00116  0898  90 03                 BCC @SKIP6
+00117  089A  C8                    INY
+00118  089B  C6 04                 DEC $04         ;DECREASE P3'S RANK IF P3Y IS LOWER THAN P2Y
+00119  089D             @SKIP6
+00120  089D                        
+00121  089D  84 03                 STY $03         ;STORE P2'S RANK, P3'S RANK DOESN'T NEED STORING, SINCE WE SUBRACTED FROM $04 DIRECTLY
+00122  089F                        
+00123  089F                        
+00124  089F             
+00125  089F             
+00126  089F             ;NOW MOVE IT ALL TO ZPG (ACTUALLY WORKS)
+00127  089F             
+00128  089F                        ;$05 USED FOR
+00129  089F                        ;$06 USED FOR
+00130  089F             
+00131  089F  A9 27                 LDA #<MP1X-1
+00132  08A1  8D B4 08              STA @SM1+1
+00133  08A4             
+00134  08A4  A0 00                 LDY #0  ;FOR INDEX INTO RANKDATA
+00135  08A6  A2 04                 LDX #4  ;4 BYTES PER POINT TO BE MOVED
+00136  08A8             
+00137  08A8             @ARRANGEOUTERLOOP 
+00138  08A8             
+00139  08A8  B9 02 00              LDA $02,Y       ;$02 FOR RANK DATA
+00140  08AB  0A                    ASL
+00141  08AC  0A                    ASL
+00142  08AD  18                    CLC
+00143  08AE  69 0F                 ADC #@P1X-1
+00144  08B0  8D B7 08              STA @SM2+1
+00145  08B3             
+00146  08B3             @ARRANGEINNERLOOP 
+00147  08B3             @SM1
+00148  08B3  BD 27 0D              LDA MP1X-1,X    ;DO THE ACTUAL MOVING
+00149  08B6             @SM2
+00150  08B6  95 0F                 STA @P1X-1,X
+00151  08B8  CA                    DEX
+00152  08B9  D0 F8                 BNE @ARRANGEINNERLOOP
+00153  08BB  C8                    INY
+00154  08BC  A2 04                 LDX #4
+00155  08BE  AD B4 08              LDA @SM1+1
+00156  08C1  18                    CLC
+00157  08C2  69 04                 ADC #4
+00158  08C4  8D B4 08              STA @SM1+1
+00159  08C7  AD B5 08              LDA @SM1+2
+00160  08CA  69 00                 ADC #$00
+00161  08CC  8D B5 08              STA @SM1+2
+00162  08CF  C0 03                 CPY #3
+00163  08D1  90 D5                 BCC @ARRANGEOUTERLOOP
+00164  08D3             
+00165  08D3                        ;$02 TO $04 FOR DIVIDEND (16BIT.8BIT), ALSO OUTPUT!
+00166  08D3                        ;$05 TO $06 FOR DIVISOR (16BIT.)
+00167  08D3                        ;$07 TO $0A FOR DIV-ROUTINE
+00168  08D3                        ;$10 TO $1B FOR SORTED POINT DATA
+00169  08D3                        ;$1C TO $2E FOR VARIABLES
+00170  08D3             
+00171  08D3  A9 00                 LDA #$00        ;LS = P1X
+00172  08D5  85 1C                 STA @LS         ;LE = P1X
+00173  08D7  85 1F                 STA @LE         ;LSG = P2X
+00174  08D9  A5 10                 LDA @P1X
+00175  08DB  85 1D                 STA @LS+1
+00176  08DD  85 20                 STA @LE+1
+00177  08DF  A5 11                 LDA @P1X+1
+00178  08E1  85 1E                 STA @LS+2
+00179  08E3  85 21                 STA @LE+2
+00180  08E5  A5 14                 LDA @P2X
+00181  08E7  85 29                 STA @LSG
+00182  08E9  A5 15                 LDA @P2X+1
+00183  08EB  85 2A                 STA @LSG+1
+00184  08ED             
+00185  08ED  A5 16                 LDA @P2Y        ;F = (P2Y-P1Y)/(P3Y-P1Y)
+00186  08EF  38                    SEC
+00187  08F0  E5 12                 SBC @P1Y
+00188  08F2  85 03                 STA DIVIDEND+1 ;ALWAYS REMEMBER: DIVIDEND+0 IS AFTER DECIMAL POINT!
+00189  08F4  A5 17                 LDA @P2Y+1
+00190  08F6  E5 13                 SBC @P1Y+1
+00191  08F8  85 04                 STA DIVIDEND+2
+00192  08FA  A5 1A                 LDA @P3Y
+00193  08FC  38                    SEC
+00194  08FD  E5 12                 SBC @P1Y
+00195  08FF  85 05                 STA DIVISOR
+00196  0901  A5 1B                 LDA @P3Y+1
+00197  0903  E5 13                 SBC @P1Y+1
+00198  0905  85 06                 STA DIVISOR+1
+00199  0907  A9 00                 LDA #$00
+00200  0909  85 02                 STA DIVIDEND
+00201  090B  20 34 0D              JSR DIVIDE
+00202  090E  A5 02                 LDA DIVIDEND
+00203  0910  85 05                 STA MULTIPLIER
+00204  0912  85 2C                 STA @F
+00205  0914  86 02                 STX MULTIPLICAND ;THIS IS TACKY AF, BUT X SHOULD ALWAYS BE 0 AFTER DIVIDE
+00206  0916             
+00207  0916                        ;$02 TO $08 FOR MULTIPLY
+00208  0916                        ;$09 TO $0A FOR BUFFER OF P3X*F
+00209  0916             
+00210  0916  A5 18                 LDA @P3X        ;LEG = P1X*(1-F)+P3X*F
+00211  0918  85 03                 STA MULTIPLICAND+1
+00212  091A  A5 19                 LDA @P3X+1
+00213  091C  85 04                 STA MULTIPLICAND+2
+00214  091E  20 78 0D              JSR MULTIPLY
+00215  0921  A5 07                 LDA PRODUCT+1
+00216  0923  85 09                 STA $09
+00217  0925  A5 08                 LDA PRODUCT+2
+00218  0927  85 0A                 STA $0A
+00219  0929  A9 00                 LDA #$00
+00220  092B  85 02                 STA MULTIPLICAND
+00221  092D  A5 10                 LDA @P1X
+00222  092F  85 03                 STA MULTIPLICAND+1
+00223  0931  A5 11                 LDA @P1X+1
+00224  0933  85 04                 STA MULTIPLICAND+2
+00225  0935  A9 00                 LDA #$00        ;CALCULATE 1-F
+00226  0937  38                    SEC
+00227  0938  E5 2C                 SBC @F
+00228  093A  85 05                 STA MULTIPLIER
+00229  093C  20 78 0D              JSR MULTIPLY
+00230  093F  A5 07                 LDA PRODUCT+1
+00231  0941  18                    CLC
+00232  0942  65 09                 ADC $09
+00233  0944  85 2D                 STA @LEG
+00234  0946  AA                    TAX
+00235  0947  A5 08                 LDA PRODUCT+2
+00236  0949  65 0A                 ADC $0A
+00237  094B  85 2E                 STA @LEG+1
+00238  094D  A8                    TAY
+00239  094E             
+00240  094E  8A                    TXA       ;IF (LSG > LEG) {
+00241  094F  38                    SEC       ;       SWITCH LSG AND LEG
+00242  0950  E5 29                 SBC @LSG  ;}
+00243  0952  98                    TYA
+00244  0953  E5 2A                 SBC @LSG+1
+00245  0955  B0 10                 BCS @LSGBELOWLEG
+00246  0957  A6 29                 LDX @LSG
+00247  0959  A5 2D                 LDA @LEG
+00248  095B  86 2D                 STX @LEG
+00249  095D  85 29                 STA @LSG
+00250  095F  A6 2A                 LDX @LSG+1
+00251  0961  A5 2E                 LDA @LEG+1
+00252  0963  86 2E                 STX @LEG+1
+00253  0965  85 2A                 STA @LSG+1
+00254  0967             @LSGBELOWLEG 
+00255  0967             
+00256  0967                        
+00257  0967  A9 00                 LDA #$00        ;MLS = (|LSG-P1X|)/(P2Y-P1Y)
+00258  0969  85 02                 STA DIVIDEND    ;IF (LSG < P1X){
+00259  096B  85 28                 STA @MLSN       ;       MLSN = TRUE
+00260  096D  A5 29                 LDA @LSG        ;}
+00261  096F  38                    SEC
+00262  0970  E5 10                 SBC @P1X
+00263  0972  AA                    TAX
+00264  0973  A5 2A                 LDA @LSG+1
+00265  0975  E5 11                 SBC @P1X+1
+00266  0977  A8                    TAY
+00267  0978  90 07                 BCC @P1XABOVELSG
+00268  097A  86 03                 STX DIVIDEND+1
+00269  097C  84 04                 STY DIVIDEND+2
+00270  097E  4C 96 09              JMP @P1XBELOWLSG
+00271  0981             @P1XABOVELSG 
+00272  0981  A9 01                 LDA #$01
+00273  0983  85 28                 STA @MLSN
+00274  0985  86 2C                 STX @F  ;FACTOR IS NOT USED ANYMORE, SO I CAN DO THIS. REMEMBER: RECYCLING IS GOOD!
+00275  0987  A9 00                 LDA #$00
+00276  0989  38                    SEC
+00277  098A  E5 2C                 SBC @F
+00278  098C  85 03                 STA DIVIDEND+1
+00279  098E  84 2C                 STY @F
+00280  0990  A9 00                 LDA #$00
+00281  0992  E5 2C                 SBC @F
+00282  0994  85 04                 STA DIVIDEND+2
+00283  0996             @P1XBELOWLSG 
+00284  0996  A5 16                 LDA @P2Y
+00285  0998  38                    SEC
+00286  0999  E5 12                 SBC @P1Y
+00287  099B  85 05                 STA DIVISOR
+00288  099D  A5 17                 LDA @P2Y+1
+00289  099F  E5 13                 SBC @P1Y+1
+00290  09A1  85 06                 STA DIVISOR+1
+00291  09A3  20 34 0D              JSR DIVIDE
+00292  09A6  A5 02                 LDA DIVIDEND
+00293  09A8  85 22                 STA @MLS
+00294  09AA  A5 03                 LDA DIVIDEND+1
+00295  09AC  85 23                 STA @MLS+1
+00296  09AE  A5 04                 LDA DIVIDEND+2
+00297  09B0  85 24                 STA @MLS+2
+00298  09B2             
+00299  09B2             
+00300  09B2  A9 00                 LDA #$00        ;MLE = (|LEG-P1X|)/(P2Y-P1Y)
+00301  09B4  85 02                 STA DIVIDEND    ;IF (LEG < P1X){
+00302  09B6  85 2B                 STA @MLEN       ;        MLEN = TRUE
+00303  09B8  A5 2D                 LDA @LEG        ;}
+00304  09BA  38                    SEC
+00305  09BB  E5 10                 SBC @P1X
+00306  09BD  AA                    TAX
+00307  09BE  A5 2E                 LDA @LEG+1
+00308  09C0  E5 11                 SBC @P1X+1
+00309  09C2  A8                    TAY
+00310  09C3  90 07                 BCC @P1XABOVELEG
+00311  09C5  86 03                 STX DIVIDEND+1
+00312  09C7  84 04                 STY DIVIDEND+2
+00313  09C9  4C E1 09              JMP @P1XBELOWLEG
+00314  09CC             @P1XABOVELEG 
+00315  09CC  A9 01                 LDA #$01
+00316  09CE  85 2B                 STA @MLEN
+00317  09D0  86 2C                 STX @F  ;FACTOR IS NOT USED ANYMORE, SO I CAN USE IT YET AGAIN.
+00318  09D2  A9 00                 LDA #$00
+00319  09D4  38                    SEC
+00320  09D5  E5 2C                 SBC @F
+00321  09D7  85 03                 STA DIVIDEND+1
+00322  09D9  84 2C                 STY @F
+00323  09DB  A9 00                 LDA #$00
+00324  09DD  E5 2C                 SBC @F
+00325  09DF  85 04                 STA DIVIDEND+2
+00326  09E1             @P1XBELOWLEG 
+00327  09E1  20 34 0D              JSR DIVIDE      ;P2Y-P1Y IS ALREADY IN DIVISOR, SO WE JUST LEAVE IT THERE
+00328  09E4  A5 02                 LDA DIVIDEND
+00329  09E6  85 25                 STA @MLE
+00330  09E8  A5 03                 LDA DIVIDEND+1
+00331  09EA  85 26                 STA @MLE+1
+00332  09EC  A5 04                 LDA DIVIDEND+2
+00333  09EE  85 27                 STA @MLE+2
+00334  09F0             
+00335  09F0  A5 13                 LDA @P1Y+1     ;CL = ($8000 < P1Y < $80C7) (CL IS LOWEST 8 BITS)
+00336  09F2  C9 80                 CMP #$80       ;CL IS SET TO FIRST LINE TO BE DRAWN ($C7 IS 199 IN DECIMAL, AS THE SCREEN IS 200 PIXELS HIGH)
+00337  09F4  B0 67                 BCS @CLBIG
+00338  09F6  A9 00                 LDA #$00
+00339  09F8  85 30                 STA @CL
+00340  09FA             
+00341  09FA  A0 00                 LDY #$00        ;THIS SHOULD BE SEEN MORE AS AN INSERT.
+00342  09FC             @ADJUSTLSLE ;THE CODE HERE ADJUSTS LS AND LE IF P1Y IS ABOVE THE SCREEN.
+00343  09FC  A9 00                 LDA #$00
+00344  09FE  38                    SEC
+00345  09FF  E5 12                 SBC @P1Y
+00346  0A01  85 02                 STA BIGMULTIPLICAND
+00347  0A03  A9 80                 LDA #$80
+00348  0A05  E5 13                 SBC @P1Y+1
+00349  0A07  85 03                 STA BIGMULTIPLICAND+1
+00350  0A09  B9 22 00              LDA @MLS,Y
+00351  0A0C  85 04                 STA BIGMULTIPLIER
+00352  0A0E  B9 23 00              LDA @MLS+1,Y
+00353  0A11  85 05                 STA BIGMULTIPLIER+1
+00354  0A13  B9 24 00              LDA @MLS+2,Y
+00355  0A16  85 06                 STA BIGMULTIPLIER+2
+00356  0A18  20 A3 0D              JSR BIGMULTIPLY
+00357  0A1B  B9 28 00              LDA @MLSN,Y
+00358  0A1E  D0 1C                 BNE @SUBFROMLS
+00359  0A20  B9 1C 00              LDA @LS,Y
+00360  0A23  18                    CLC
+00361  0A24  65 07                 ADC BIGPRODUCT
+00362  0A26  99 1C 00              STA @LS,Y
+00363  0A29  B9 1D 00              LDA @LS+1,Y
+00364  0A2C  65 08                 ADC BIGPRODUCT+1
+00365  0A2E  99 1D 00              STA @LS+1,Y
+00366  0A31  B9 1E 00              LDA @LS+2,Y
+00367  0A34  65 09                 ADC BIGPRODUCT+2
+00368  0A36  99 1E 00              STA @LS+2,Y
+00369  0A39  4C 55 0A              JMP @LSADDDONE
+00370  0A3C             @SUBFROMLS 
+00371  0A3C  B9 1C 00              LDA @LS,Y
+00372  0A3F  38                    SEC
+00373  0A40  E5 07                 SBC BIGPRODUCT
+00374  0A42  99 1C 00              STA @LS,Y
+00375  0A45  B9 1D 00              LDA @LS+1,Y
+00376  0A48  E5 08                 SBC BIGPRODUCT+1
+00377  0A4A  99 1D 00              STA @LS+1,Y
+00378  0A4D  B9 1E 00              LDA @LS+2,Y
+00379  0A50  E5 09                 SBC BIGPRODUCT+2
+00380  0A52  99 1E 00              STA @LS+2,Y
+00381  0A55             @LSADDDONE 
+00382  0A55  98                    TYA
+00383  0A56  D0 12                 BNE @CLDONE
+00384  0A58  A0 03                 LDY #3
+00385  0A5A  4C FC 09              JMP @ADJUSTLSLE
+00386  0A5D             
+00387  0A5D             @CLBIG
+00388  0A5D  F0 01                 BEQ @CLPROBABLYONSCREEN
+00389  0A5F  60                    RTS                             ;IF P1Y IS BELOW SCREEN, THEN THERE IS NOTHING TO DRAW
+00390  0A60             @CLPROBABLYONSCREEN 
+00391  0A60  A5 12                 LDA @P1Y
+00392  0A62  C9 C8                 CMP #$C8
+00393  0A64  A2 FF                 LDX #$FF ;THIS IS JUST TO CLEAR THE ZERO FLAG
+00394  0A66  B0 F5                 BCS @CLBIG
+00395  0A68  85 30                 STA @CL
+00396  0A6A             @CLDONE
+00397  0A6A             
+00398  0A6A  A5 17                 LDA @P2Y+1     ;LL = ($8000 < P1Y < $80C7-CL), FIRST CALCULATED IS LASTLINE,
+00399  0A6C  C9 80                 CMP #$80       ;THEN LINES LEFT IS CALCULATED A-CL
+00400  0A6E  B0 03                 BCS @LLBIG
+00401  0A70  4C EA 0A              JMP @TOPMAINFINISHED ;IF P2Y IS ABOVE SCREEN, THEN THERE IS NO TOP PART TO DRAW
+00402  0A73             @LLBIG
+00403  0A73  F0 05                 BEQ @LLPROBABLYONSCREEN
+00404  0A75  A9 C7                 LDA #$C7
+00405  0A77  4C 82 0A              JMP @LLDONE
+00406  0A7A             @LLPROBABLYONSCREEN 
+00407  0A7A  A5 16                 LDA @P2Y
+00408  0A7C  C9 C8                 CMP #$C8
+00409  0A7E  A2 FF                 LDX #$FF ;THIS IS JUST TO CLEAR THE ZERO FLAG
+00410  0A80  B0 F1                 BCS @LLBIG
+00411  0A82             @LLDONE
+00412  0A82  38                    SEC
+00413  0A83  E5 30                 SBC @CL
+00414  0A85  85 2F                 STA @LL
+00415  0A87             
+00416  0A87             @TOPMAINLOOP 
+00417  0A87             
+00418  0A87             TODO       USE SM-CODE WITH MLSN/MLEN FOR SPEED BOOST
+00419  0A87             
+00420  0A87  20 11 0C              JSR @DRAWLINE
+00421  0A8A             
+00422  0A8A  A4 28                 LDY @MLSN       ;MOVE LINE START AND LINE END ACCORDING TO MLS AND MLE
+00423  0A8C  D0 16                 BNE @MLSNSET
+00424  0A8E  A5 1C                 LDA @LS
+00425  0A90  18                    CLC
+00426  0A91  65 22                 ADC @MLS
+00427  0A93  85 1C                 STA @LS
+00428  0A95  A5 1D                 LDA @LS+1
+00429  0A97  65 23                 ADC @MLS+1
+00430  0A99  85 1D                 STA @LS+1
+00431  0A9B  A5 1E                 LDA @LS+2
+00432  0A9D  65 24                 ADC @MLS+2
+00433  0A9F  85 1E                 STA @LS+2
+00434  0AA1  4C B7 0A              JMP @MLSDONE
+00435  0AA4             @MLSNSET
+00436  0AA4  A5 1C                 LDA @LS
+00437  0AA6  38                    SEC
+00438  0AA7  E5 22                 SBC @MLS
+00439  0AA9  85 1C                 STA @LS
+00440  0AAB  A5 1D                 LDA @LS+1
+00441  0AAD  E5 23                 SBC @MLS+1
+00442  0AAF  85 1D                 STA @LS+1
+00443  0AB1  A5 1E                 LDA @LS+2
+00444  0AB3  E5 24                 SBC @MLS+2
+00445  0AB5  85 1E                 STA @LS+2
+00446  0AB7             @MLSDONE
+00447  0AB7  A4 2B                 LDY @MLEN       ;NOW SET LE = LE +/- MLE
+00448  0AB9  D0 16                 BNE @MLENSET
+00449  0ABB  A5 1F                 LDA @LE
+00450  0ABD  18                    CLC
+00451  0ABE  65 25                 ADC @MLE
+00452  0AC0  85 1F                 STA @LE
+00453  0AC2  A5 20                 LDA @LE+1
+00454  0AC4  65 26                 ADC @MLE+1
+00455  0AC6  85 20                 STA @LE+1
+00456  0AC8  A5 21                 LDA @LE+2
+00457  0ACA  65 27                 ADC @MLE+2
+00458  0ACC  85 21                 STA @LE+2
+00459  0ACE  4C E4 0A              JMP @MLEDONE
+00460  0AD1             @MLENSET
+00461  0AD1  A5 1F                 LDA @LE
+00462  0AD3  38                    SEC
+00463  0AD4  E5 25                 SBC @MLE
+00464  0AD6  85 1F                 STA @LE
+00465  0AD8  A5 20                 LDA @LE+1
+00466  0ADA  E5 26                 SBC @MLE+1
+00467  0ADC  85 20                 STA @LE+1
+00468  0ADE  A5 21                 LDA @LE+2
+00469  0AE0  E5 27                 SBC @MLE+2
+00470  0AE2  85 21                 STA @LE+2
+00471  0AE4             @MLEDONE
+00472  0AE4             
+00473  0AE4  E6 30                 INC @CL
+00474  0AE6  C6 2F                 DEC @LL
+00475  0AE8  D0 9D                 BNE @TOPMAINLOOP
+00476  0AEA             
+00477  0AEA             TODO       IF THERE'S NO TOP PART, LSG AND LEG ARE WEIRD
+00478  0AEA             
+00479  0AEA             @TOPMAINFINISHED 
+00480  0AEA             
+00481  0AEA  A9 00                 LDA #$00
+00482  0AEC  85 1C                 STA @LS
+00483  0AEE  85 1F                 STA @LE
+00484  0AF0             
+00485  0AF0  A5 29                 LDA @LSG
+00486  0AF2  85 1D                 STA @LS+1
+00487  0AF4  A5 2A                 LDA @LSG+1
+00488  0AF6  85 1E                 STA @LS+2
+00489  0AF8  A5 2D                 LDA @LEG
+00490  0AFA  85 20                 STA @LE+1
+00491  0AFC  A5 2E                 LDA @LEG+1
+00492  0AFE  85 21                 STA @LE+2
+00493  0B00                        
+00494  0B00  A5 18                 LDA @P3X
+00495  0B02  85 29                 STA @LSG
+00496  0B04  85 2D                 STA @LEG
+00497  0B06  A5 19                 LDA @P3X+1
+00498  0B08  85 2A                 STA @LSG+1
+00499  0B0A  85 2E                 STA @LEG+1
+00500  0B0C             
+00501  0B0C  A9 00                 LDA #$00        ;MLS = (|LSG-LS|)/(P3Y-P2Y)
+00502  0B0E  85 02                 STA DIVIDEND    ;IF (LSG < LS){
+00503  0B10  85 28                 STA @MLSN       ;       MLSN = TRUE
+00504  0B12  A5 29                 LDA @LSG        ;}
+00505  0B14  38                    SEC
+00506  0B15  E5 1D                 SBC @LS+1
+00507  0B17  AA                    TAX
+00508  0B18  A5 2A                 LDA @LSG+1
+00509  0B1A  E5 1E                 SBC @LS+2
+00510  0B1C  A8                    TAY
+00511  0B1D  90 07                 BCC @LSABOVELSG
+00512  0B1F  86 03                 STX DIVIDEND+1
+00513  0B21  84 04                 STY DIVIDEND+2
+00514  0B23  4C 3B 0B              JMP @LSBELOWLSG
+00515  0B26             @LSABOVELSG 
+00516  0B26  A9 01                 LDA #$01
+00517  0B28  85 28                 STA @MLSN
+00518  0B2A  86 2C                 STX @F  ;FACTOR IS NOT USED ANYMORE, SO I CAN DO THIS. REMEMBER: RECYCLING IS GOOD!
+00519  0B2C  A9 00                 LDA #$00
+00520  0B2E  38                    SEC
+00521  0B2F  E5 2C                 SBC @F
+00522  0B31  85 03                 STA DIVIDEND+1
+00523  0B33  84 2C                 STY @F
+00524  0B35  A9 00                 LDA #$00
+00525  0B37  E5 2C                 SBC @F
+00526  0B39  85 04                 STA DIVIDEND+2
+00527  0B3B             @LSBELOWLSG 
+00528  0B3B  A5 1A                 LDA @P3Y
+00529  0B3D  38                    SEC
+00530  0B3E  E5 16                 SBC @P2Y
+00531  0B40  85 05                 STA DIVISOR
+00532  0B42  A5 1B                 LDA @P3Y+1
+00533  0B44  E5 17                 SBC @P2Y+1
+00534  0B46  85 06                 STA DIVISOR+1
+00535  0B48  20 34 0D              JSR DIVIDE
+00536  0B4B  A5 02                 LDA DIVIDEND
+00537  0B4D  85 22                 STA @MLS
+00538  0B4F  A5 03                 LDA DIVIDEND+1
+00539  0B51  85 23                 STA @MLS+1
+00540  0B53  A5 04                 LDA DIVIDEND+2
+00541  0B55  85 24                 STA @MLS+2
+00542  0B57             
+00543  0B57  A9 00                 LDA #$00        ;MLE = (|LEG-LE|)/(P3Y-P2Y)
+00544  0B59  85 02                 STA DIVIDEND    ;IF (P3X < LEG){
+00545  0B5B  85 2B                 STA @MLEN       ;        MLEN = TRUE
+00546  0B5D  A5 2D                 LDA @LEG        ;}
+00547  0B5F  38                    SEC
+00548  0B60  E5 20                 SBC @LE+1
+00549  0B62  AA                    TAX
+00550  0B63  A5 2E                 LDA @LEG+1
+00551  0B65  E5 21                 SBC @LE+2
+00552  0B67  A8                    TAY
+00553  0B68  90 07                 BCC @LEABOVELEG
+00554  0B6A  86 03                 STX DIVIDEND+1
+00555  0B6C  84 04                 STY DIVIDEND+2
+00556  0B6E  4C 86 0B              JMP @LEBELOWLEG
+00557  0B71             @LEABOVELEG 
+00558  0B71  A9 01                 LDA #$01
+00559  0B73  85 2B                 STA @MLEN
+00560  0B75  86 2C                 STX @F  ;FACTOR IS NOT USED ANYMORE, SO I CAN USE IT YET AGAIN.
+00561  0B77  A9 00                 LDA #$00
+00562  0B79  38                    SEC
+00563  0B7A  E5 2C                 SBC @F
+00564  0B7C  85 03                 STA DIVIDEND+1
+00565  0B7E  84 2C                 STY @F
+00566  0B80  A9 00                 LDA #$00
+00567  0B82  E5 2C                 SBC @F
+00568  0B84  85 04                 STA DIVIDEND+2
+00569  0B86             @LEBELOWLEG 
+00570  0B86  20 34 0D              JSR DIVIDE      ;P3Y-P2Y IS ALREADY IN DIVISOR, SO WE JUST LEAVE IT THERE
+00571  0B89  A5 02                 LDA DIVIDEND
+00572  0B8B  85 25                 STA @MLE
+00573  0B8D  A5 03                 LDA DIVIDEND+1
+00574  0B8F  85 26                 STA @MLE+1
+00575  0B91  A5 04                 LDA DIVIDEND+2
+00576  0B93  85 27                 STA @MLE+2
+00577  0B95             
+00578  0B95  A5 1B                 LDA @P3Y+1      ;CALCULATE LL
+00579  0B97  C9 80                 CMP #$80
+00580  0B99  F0 05                 BEQ @LLPROBABLYONSCREEN2
+00581  0B9B  A9 C8                 LDA #200
+00582  0B9D  4C A8 0B              JMP @LLDONE2
+00583  0BA0             @LLPROBABLYONSCREEN2 
+00584  0BA0  A5 1A                 LDA @P3Y
+00585  0BA2  C9 C9                 CMP #201
+00586  0BA4  90 02                 BCC @LLDONE2
+00587  0BA6  A9 C8                 LDA #200
+00588  0BA8             @LLDONE2
+00589  0BA8  38                    SEC
+00590  0BA9  E5 30                 SBC @CL
+00591  0BAB  85 2F                 STA @LL
+00592  0BAD             
+00593  0BAD             @BOTTOMMAINLOOP 
+00594  0BAD             
+00595  0BAD             TODO       USE SM-CODE WITH MLSN/MLEN FOR SPEED BOOST
+00596  0BAD             
+00597  0BAD  20 11 0C              JSR @DRAWLINE
+00598  0BB0             
+00599  0BB0  A4 28                 LDY @MLSN       ;MOVE LINE START AND LINE END ACCORDING TO MLS AND MLE
+00600  0BB2  D0 16                 BNE @MLSNSET2
+00601  0BB4  A5 1C                 LDA @LS
+00602  0BB6  18                    CLC
+00603  0BB7  65 22                 ADC @MLS
+00604  0BB9  85 1C                 STA @LS
+00605  0BBB  A5 1D                 LDA @LS+1
+00606  0BBD  65 23                 ADC @MLS+1
+00607  0BBF  85 1D                 STA @LS+1
+00608  0BC1  A5 1E                 LDA @LS+2
+00609  0BC3  65 24                 ADC @MLS+2
+00610  0BC5  85 1E                 STA @LS+2
+00611  0BC7  4C DD 0B              JMP @MLSDONE2
+00612  0BCA             @MLSNSET2
+00613  0BCA  A5 1C                 LDA @LS
+00614  0BCC  38                    SEC
+00615  0BCD  E5 22                 SBC @MLS
+00616  0BCF  85 1C                 STA @LS
+00617  0BD1  A5 1D                 LDA @LS+1
+00618  0BD3  E5 23                 SBC @MLS+1
+00619  0BD5  85 1D                 STA @LS+1
+00620  0BD7  A5 1E                 LDA @LS+2
+00621  0BD9  E5 24                 SBC @MLS+2
+00622  0BDB  85 1E                 STA @LS+2
+00623  0BDD             @MLSDONE2
+00624  0BDD  A4 2B                 LDY @MLEN       ;NOW SET LE = LE +/- MLE
+00625  0BDF  D0 16                 BNE @MLENSET2
+00626  0BE1  A5 1F                 LDA @LE
+00627  0BE3  18                    CLC
+00628  0BE4  65 25                 ADC @MLE
+00629  0BE6  85 1F                 STA @LE
+00630  0BE8  A5 20                 LDA @LE+1
+00631  0BEA  65 26                 ADC @MLE+1
+00632  0BEC  85 20                 STA @LE+1
+00633  0BEE  A5 21                 LDA @LE+2
+00634  0BF0  65 27                 ADC @MLE+2
+00635  0BF2  85 21                 STA @LE+2
+00636  0BF4  4C 0A 0C              JMP @MLEDONE2
+00637  0BF7             @MLENSET2
+00638  0BF7  A5 1F                 LDA @LE
+00639  0BF9  38                    SEC
+00640  0BFA  E5 25                 SBC @MLE
+00641  0BFC  85 1F                 STA @LE
+00642  0BFE  A5 20                 LDA @LE+1
+00643  0C00  E5 26                 SBC @MLE+1
+00644  0C02  85 20                 STA @LE+1
+00645  0C04  A5 21                 LDA @LE+2
+00646  0C06  E5 27                 SBC @MLE+2
+00647  0C08  85 21                 STA @LE+2
+00648  0C0A             @MLEDONE2
+00649  0C0A             
+00650  0C0A  E6 30                 INC @CL
+00651  0C0C  C6 2F                 DEC @LL
+00652  0C0E  D0 9D                 BNE @BOTTOMMAINLOOP
+00653  0C10             
+00654  0C10  60                    RTS
+00655  0C11             
+00656  0C11             
+00657  0C11             @FIRSTCOL  = $04 ;FIRST COLUMN TO WRITE TO
+00658  0C11             @COLSREMAINING = $05 ;COLUMNS REMAINING
+00659  0C11             @LASTDOT   = $06 ;LAST DOT TO COLOR
+00660  0C11             @STARTMASKBUFFER = $07 ;START MASK BUFFER
+00661  0C11             
+00662  0C11             
+00663  0C11             @DRAWLINE  ;$04 IS START CHARACTER NO. ,$05 IS HOW MANY BYTES TO WRITE
+00664  0C11  A9 40                 LDA #>BITMAP    ;$02/$03 IS SET TO SCREEN ADDRESS OF LINE START
+00665  0C13  85 03                 STA $03         ;WE FIRST SET $02 ACCORDING TO LS
+00666  0C15  A5 1E                 LDA @LS+2
+00667  0C17  C9 80                 CMP #$80
+00668  0C19  B0 0A                 BCS @FIRSTCHARBIG
+00669  0C1B  A9 00                 LDA #0                  ;BECAUSE WE START AT 0TH HORIZONTAL CHARACTER
+00670  0C1D  A8                    TAY     ;FOR LATER USE
+00671  0C1E  85 02                 STA $02
+00672  0C20  85 04                 STA @FIRSTCOL
+00673  0C22  4C 45 0C              JMP @FIRSTCHARDONE
+00674  0C25             @FIRSTCHARBIG 
+00675  0C25  F0 01                 BEQ @FIRSTCHARPROBABLYONSCREEN
+00676  0C27  60                    RTS ;TESTING
+00677  0C28             @FIRSTCHARPROBABLYONSCREEN 
+00678  0C28  A5 1D                 LDA @LS+1
+00679  0C2A  C9 A0                 CMP #160
+00680  0C2C  A2 FF                 LDX #$FF ;THIS IS JUST TO CLEAR THE ZERO FLAG
+00681  0C2E  B0 F5                 BCS @FIRSTCHARBIG
+00682  0C30  A8                    TAY     ;FOR LATER USE
+00683  0C31  29 FC                 AND #%11111100          ;BECAUSE WE START AT A'TH HORIZONTAL CHARACTER
+00684  0C33  0A                    ASL
+00685  0C34  08                    PHP
+00686  0C35  85 02                 STA $02
+00687  0C37  AA                    TAX
+00688  0C38  A5 03                 LDA $03
+00689  0C3A  69 00                 ADC #$00
+00690  0C3C  85 03                 STA $03
+00691  0C3E  8A                    TXA
+00692  0C3F  28                    PLP
+00693  0C40  6A                    ROR
+00694  0C41  4A                    LSR
+00695  0C42  4A                    LSR
+00696  0C43  85 04                 STA @FIRSTCOL
+00697  0C45             @FIRSTCHARDONE 
+00698  0C45             
+00699  0C45  A5 21                 LDA @LE+2       ;COLSREMAINING IS FIRST SET TO LAST COLUMN
+00700  0C47  C9 80                 CMP #$80
+00701  0C49  B0 01                 BCS @LASTCHARBIG
+00702  0C4B  60                    RTS                     ;BECAUSE WE END AT 0TH HORIZONTAL CHARACTER
+00703  0C4C             @LASTCHARBIG 
+00704  0C4C  F0 09                 BEQ @LASTCHARPROBABLYONSCREEN
+00705  0C4E  A9 A0                 LDA #160
+00706  0C50  85 06                 STA @LASTDOT
+00707  0C52  A9 28                 LDA #40
+00708  0C54  4C 63 0C              JMP @LASTCHARDONE
+00709  0C57             @LASTCHARPROBABLYONSCREEN 
+00710  0C57  A5 20                 LDA @LE+1
+00711  0C59  C9 A0                 CMP #160
+00712  0C5B  A2 FF                 LDX #$FF ;THIS IS JUST TO CLEAR THE ZERO FLAG
+00713  0C5D  B0 ED                 BCS @LASTCHARBIG
+00714  0C5F  85 06                 STA @LASTDOT
+00715  0C61  4A                    LSR
+00716  0C62  4A                    LSR
+00717  0C63             @LASTCHARDONE 
+00718  0C63  38                    SEC
+00719  0C64  E5 04                 SBC @FIRSTCOL
+00720  0C66  85 05                 STA @COLSREMAINING
+00721  0C68             
+00722  0C68  A5 30                 LDA @CL
+00723  0C6A  29 07                 AND #%00000111
+00724  0C6C  18                    CLC
+00725  0C6D  65 02                 ADC $02
+00726  0C6F  85 02                 STA $02
+00727  0C71  A5 30                 LDA @CL
+00728  0C73  29 F8                 AND #%11111000
+00729  0C75  0A                    ASL
+00730  0C76  0A                    ASL
+00731  0C77  0A                    ASL
+00732  0C78  AA                    TAX
+00733  0C79  18                    CLC
+00734  0C7A  65 02                 ADC $02
+00735  0C7C  85 02                 STA $02
+00736  0C7E  A5 03                 LDA $03
+00737  0C80  69 00                 ADC #$00
+00738  0C82  85 03                 STA $03
+00739  0C84  8A                    TXA
+00740  0C85  0A                    ASL
+00741  0C86  0A                    ASL
+00742  0C87  18                    CLC
+00743  0C88  65 02                 ADC $02
+00744  0C8A  85 02                 STA $02
+00745  0C8C  A5 03                 LDA $03
+00746  0C8E  69 00                 ADC #$00
+00747  0C90  85 03                 STA $03
+00748  0C92  A5 30                 LDA @CL
+00749  0C94  4A                    LSR
+00750  0C95  4A                    LSR
+00751  0C96  4A                    LSR
+00752  0C97  AA                    TAX
+00753  0C98  18                    CLC
+00754  0C99  65 03                 ADC $03
+00755  0C9B  85 03                 STA $03
+00756  0C9D  8A                    TXA
+00757  0C9E  4A                    LSR
+00758  0C9F  4A                    LSR
+00759  0CA0  18                    CLC
+00760  0CA1  65 03                 ADC $03
+00761  0CA3  85 03                 STA $03
+00762  0CA5                        
+00763  0CA5  98                    TYA             ;SHIFT FOR SMOOTH EDGES
+00764  0CA6  29 03                 AND #%00000011  ;(LOOK A GOOD BIT FURTHER ABOVE TO SEE WHERE WE GOT Y FROM)
+00765  0CA8  D0 05                 BNE @DOSTARTEDGESHIFT
+00766  0CAA  A9 FF                 LDA #$FF
+00767  0CAC  4C B7 0C              JMP @NOSTARTEDGESHIFT
+00768  0CAF             @DOSTARTEDGESHIFT 
+00769  0CAF  AA                    TAX
+00770  0CB0  A9 FF                 LDA #$FF
+00771  0CB2             @STARTEDGESHIFTLOOP 
+00772  0CB2  4A                    LSR
+00773  0CB3  4A                    LSR
+00774  0CB4  CA                    DEX
+00775  0CB5  D0 FB                 BNE @STARTEDGESHIFTLOOP
+00776  0CB7             @NOSTARTEDGESHIFT 
+00777  0CB7             
+00778  0CB7  A4 05                 LDY @COLSREMAINING
+00779  0CB9  F0 1B                 BEQ @ONECHARLINE
+00780  0CBB  25 31                 AND @P
+00781  0CBD  A0 00                 LDY #$00
+00782  0CBF  91 02                 STA ($02),Y
+00783  0CC1  A5 02                 LDA $02
+00784  0CC3  18                    CLC
+00785  0CC4  69 08                 ADC #8
+00786  0CC6  85 02                 STA $02
+00787  0CC8  A5 03                 LDA $03
+00788  0CCA  69 00                 ADC #$00
+00789  0CCC  85 03                 STA $03
+00790  0CCE  A6 05                 LDX @COLSREMAINING
+00791  0CD0  CA                    DEX                     ;BECAUSE WE'VE ALREADY WRITTEN ONE COLUMN
+00792  0CD1  F0 38                 BEQ @ENDEDGESHIFT
+00793  0CD3  4C F7 0C              JMP @MAINDRAW
+00794  0CD6             @ONECHARLINE 
+00795  0CD6  85 07                 STA @STARTMASKBUFFER
+00796  0CD8  A5 06                 LDA @LASTDOT
+00797  0CDA  29 03                 AND #%00000011
+00798  0CDC  D0 01                 BNE @ONECHARLINESHIFT
+00799  0CDE  60                    RTS
+00800  0CDF             @ONECHARLINESHIFT 
+00801  0CDF  85 04                 STA @FIRSTCOL ;CONTENTS OF THIS REGISTER ARE NOT USED ANYMORE AT THIS POINT
+00802  0CE1  A9 04                 LDA #4
+00803  0CE3  38                    SEC
+00804  0CE4  E5 04                 SBC @FIRSTCOL
+00805  0CE6  AA                    TAX
+00806  0CE7  A9 FF                 LDA #$FF
+00807  0CE9             @ONECHARLINELOOP 
+00808  0CE9  0A                    ASL
+00809  0CEA  0A                    ASL
+00810  0CEB  CA                    DEX
+00811  0CEC  D0 FB                 BNE @ONECHARLINELOOP
+00812  0CEE  25 07                 AND @STARTMASKBUFFER
+00813  0CF0  25 31                 AND @P
+00814  0CF2  A0 00                 LDY #$00
+00815  0CF4  91 02                 STA ($02),Y
+00816  0CF6  60                    RTS
+00817  0CF7             
+00818  0CF7             @MAINDRAW
+00819  0CF7  A5 31                 LDA @P
+00820  0CF9  91 02                 STA ($02),Y
+00821  0CFB  A5 02                 LDA $02
+00822  0CFD  18                    CLC
+00823  0CFE  69 08                 ADC #8
+00824  0D00  85 02                 STA $02
+00825  0D02  A5 03                 LDA $03
+00826  0D04  69 00                 ADC #$00
+00827  0D06  85 03                 STA $03
+00828  0D08  CA                    DEX
+00829  0D09  D0 EC                 BNE @MAINDRAW
+00830  0D0B             @ENDEDGESHIFT 
+00831  0D0B  A5 06                 LDA @LASTDOT      ;SHIFT LAST COLUMN LEFT FOR SMOOTH EDGES
+00832  0D0D  29 03                 AND #%00000011
+00833  0D0F  D0 01                 BNE @DOENDEDGESHIFT
+00834  0D11  60                    RTS
+00835  0D12             @DOENDEDGESHIFT 
+00836  0D12  85 04                 STA @FIRSTCOL ;CONTENTS OF THIS REGISTER ARE NOT USED ANYMORE AT THIS POINT
+00837  0D14  A9 04                 LDA #4
+00838  0D16  38                    SEC
+00839  0D17  E5 04                 SBC @FIRSTCOL
+00840  0D19  AA                    TAX
+00841  0D1A  A9 FF                 LDA #$FF
+00842  0D1C             @ENDEDGESHIFTLOOP 
+00843  0D1C  0A                    ASL
+00844  0D1D  0A                    ASL
+00845  0D1E  CA                    DEX
+00846  0D1F  D0 FB                 BNE @ENDEDGESHIFTLOOP
+00847  0D21  25 31                 AND @P
+00848  0D23  A0 00                 LDY #$00
+00849  0D25  91 02                 STA ($02),Y
+00850  0D27  60                    RTS
+00851  0D28             
+00852  0D28                        
+00853  0D28             @P1X       = $10 ;POINT 1, X-COORD    16BIT.
+00854  0D28             @P1Y       = $12 ; (...)              (...)
+00855  0D28             @P2X       = $14
+00856  0D28             @P2Y       = $16
+00857  0D28             @P3X       = $18
+00858  0D28             @P3Y       = $1A
+00859  0D28             
+00860  0D28             
+00861  0D28             
+00862  0D28             ;THE VARIABLES:
+00863  0D28             
+00864  0D28             @LS        =$1C  ;LINE START      16BIT.8BIT
+00865  0D28             @LE        =$1F  ;LINE END        16BIT.8BIT
+00866  0D28             @MLS       =$22  ;MOVEMENT LS     16BIT.8BIT
+00867  0D28             @MLE       =$25  ;MOVEMENT LE     16BIT.8BIT
+00868  0D28             @MLSN      =$28  ;MLS NEGATIVE    LOWEST BIT
+00869  0D28             @LSG       =$29  ;LS GOAL         16BIT.            ;LSG IS HERE FOR THE 3-BYTE DIFFERENCE(HINT BELOW)
+00870  0D28             @MLEN      =$2B  ;MLE NEGATIVE    LOWEST BIT
+00871  0D28             @F         =$2C  ;FACTOR          .8BIT
+00872  0D28             @LEG       =$2D  ;LE GOAL         16BIT.
+00873  0D28             @LL        =$2F  ;LINES LEFT      8BIT.
+00874  0D28             @CL        =$30  ;CURRENT LINE    8BIT.
+00875  0D28             @P         =$31  ;PATTERN         8BIT
+00876  0D28             
+00877  0D28             ;IMPORTANT: LS-LE, MLS-MLE AND MLSN-MLEN MUST ALL BE EXACTLY 3 BYTES APART!
+00878  0D28             
+00879  0D28             
+00880  0D28             MP1X
+00881  0D28  32                    BYTE 50         ;<P1X
+00882  0D29  80                    BYTE $80        ;>P1X
+00883  0D2A             MP1Y
+00884  0D2A  0A                    BYTE 10         ;<P1Y
+00885  0D2B  80                    BYTE $80        ;>P1Y
+00886  0D2C             MP2X
+00887  0D2C  96                    BYTE 150        ;<P2X
+00888  0D2D  80                    BYTE $80        ;>P2X
+00889  0D2E             MP2Y
+00890  0D2E  0A                    BYTE 10        ;<P2Y
+00891  0D2F  80                    BYTE $80        ;>P2Y
+00892  0D30             MP3X
+00893  0D30  40                    BYTE 64        ;<P3X
+00894  0D31  80                    BYTE $80        ;>P3X
+00895  0D32             MP3Y
+00896  0D32  C8                    BYTE 200        ;<P3Y
+00897  0D33  80                    BYTE $80        ;>P3Y
+00898  0D34             
+00899  0D34             
+00900  0D34             TODO       MLSN PROBLEM
+00901  0D34             
+00902  0D34             
+00903  0D34             DIVIDE
+00904  0D34             
+00905  0D34             DIVIDEND   = $02          ;$02 TO $04 FOR DIVIDEND (16BIT.8BIT), ALSO OUTPUT!
+00906  0D34             DIVISOR    = $05           ;$05 TO $06 FOR DIVISOR (16BIT.)
+00907  0D34                        ;$07 TO $0A FOR RANDOOM SHYTE
+00908  0D34  A5 05                 LDA $05
+00909  0D36  18                    CLC
+00910  0D37  65 06                 ADC $06
+00911  0D39  D0 07                 BNE @DIVISORNOTZERO
+00912  0D3B  85 02                 STA DIVIDEND
+00913  0D3D  85 03                 STA DIVIDEND+1
+00914  0D3F  85 04                 STA DIVIDEND+2
+00915  0D41  60                    RTS
+00916  0D42             
+00917  0D42             @DIVISORNOTZERO 
+00918  0D42  A9 00                 LDA #0      ;INITIALIZE REM TO 0
+00919  0D44  85 07                 STA @REM
+00920  0D46  85 08                 STA @REM+1
+00921  0D48  85 09                 STA @REM+2
+00922  0D4A  A2 18                 LDX #24     ;THERE ARE 24 BITS IN NUM1
+00923  0D4C  06 02      @L1        ASL @NUM1    ;SHIFT HI BIT OF NUM1 INTO REM
+00924  0D4E  26 03                 ROL @NUM1+1
+00925  0D50  26 04                 ROL @NUM1+2
+00926  0D52  26 07                 ROL @REM
+00927  0D54  26 08                 ROL @REM+1
+00928  0D56  26 09                 ROL @REM+2
+00929  0D58  A5 07                 LDA @REM
+00930  0D5A  38                    SEC         ;TRIAL SUBTRACTION
+00931  0D5B  E5 05                 SBC @NUM2
+00932  0D5D  A8                    TAY
+00933  0D5E  A5 08                 LDA @REM+1
+00934  0D60  E5 06                 SBC @NUM2+1
+00935  0D62  85 0A                 STA $0A
+00936  0D64  A5 09                 LDA @REM+2
+00937  0D66  E9 00                 SBC #$00
+00938  0D68  90 0A                 BCC @L2      ;DID SUBTRACTION SUCCEED?
+00939  0D6A  85 09                 STA @REM+2   ;IF YES, SAVE IT
+00940  0D6C  A5 0A                 LDA $0A
+00941  0D6E  85 08                 STA @REM+1
+00942  0D70  84 07                 STY @REM
+00943  0D72  E6 02                 INC @NUM1    ;AND RECORD A 1 IN THE QUOTIENT
+00944  0D74  CA         @L2        DEX
+00945  0D75  D0 D5                 BNE @L1
+00946  0D77  60                    RTS
+00947  0D78             
+00948  0D78             
+00949  0D78             @NUM1      = $02
+00950  0D78             @NUM2      = $05
+00951  0D78             @REM       = $07
+00952  0D78             
+00953  0D78             
+00954  0D78             MULTIPLY   ;16BIT. * .8BIT = 16BIT.
+00955  0D78             
+00956  0D78             MULTIPLICAND = $02      ;$02 TO $04 FOR MULTIPLICAND (16BIT.8BIT)
+00957  0D78             MULTIPLIER = $05        ;$05        FOR MULTIPLIER (.8BIT)
+00958  0D78             PRODUCT    = $06           ;$06 TO $08 FOR OUTPUT (16BIT.8BIT)
+00959  0D78             
+00960  0D78  A9 00                 LDA #$00
+00961  0D7A  85 06                 STA PRODUCT
+00962  0D7C  85 07                 STA PRODUCT+1
+00963  0D7E  85 08                 STA PRODUCT+2
+00964  0D80  A2 08                 LDX #8
+00965  0D82             @LOOP
+00966  0D82  46 04                 LSR MULTIPLICAND+2
+00967  0D84  66 03                 ROR MULTIPLICAND+1
+00968  0D86  66 02                 ROR MULTIPLICAND
+00969  0D88  06 05                 ASL MULTIPLIER
+00970  0D8A  90 13                 BCC @NOADDING
+00971  0D8C  A5 06                 LDA PRODUCT
+00972  0D8E  18                    CLC
+00973  0D8F  65 02                 ADC MULTIPLICAND
+00974  0D91  85 06                 STA PRODUCT
+00975  0D93  A5 07                 LDA PRODUCT+1
+00976  0D95  65 03                 ADC MULTIPLICAND+1
+00977  0D97  85 07                 STA PRODUCT+1
+00978  0D99  A5 08                 LDA PRODUCT+2
+00979  0D9B  65 04                 ADC MULTIPLICAND+2
+00980  0D9D  85 08                 STA PRODUCT+2
+00981  0D9F             @NOADDING
+00982  0D9F  CA                    DEX
+00983  0DA0  D0 E0                 BNE @LOOP
+00984  0DA2  60                    RTS
+00985  0DA3             
+00986  0DA3             
+00987  0DA3             BIGMULTIPLY ;16BIT. * 16BIT.8BIT = 16BIT.8BIT
+00988  0DA3                        ;ZEROPAGE UP TO $10 IS SAFE TO USE
+00989  0DA3             BIGMULTIPLICAND = $02      ;$02 TO $03 FOR MULTIPLICAND (16BIT.)
+00990  0DA3             BIGMULTIPLIER = $04        ;$04 TO $06 FOR MULTIPLIER (16BIT.8BIT)
+00991  0DA3             BIGPRODUCT = $07           ;$07 TO $09 FOR OUTPUT (16BIT.8BIT)
+00992  0DA3             @PRODUCTSMALL = $0A        ;0A         FOR SMALLEST BYTE OF PRODUCT (NOT MEANT FOR OUTPUT)
+00993  0DA3             
+00994  0DA3  A9 00                 LDA #$00
+00995  0DA5  85 07                 STA BIGPRODUCT
+00996  0DA7  85 08                 STA BIGPRODUCT+1
+00997  0DA9  85 09                 STA BIGPRODUCT+2
+00998  0DAB  A2 10                 LDX #16
+00999  0DAD             @LOOP
+01000  0DAD  46 03                 LSR BIGMULTIPLICAND+1
+01001  0DAF  66 02                 ROR BIGMULTIPLICAND
+01002  0DB1  90 13                 BCC @NOADDING
+01003  0DB3  A5 07                 LDA BIGPRODUCT
+01004  0DB5  18                    CLC
+01005  0DB6  65 04                 ADC BIGMULTIPLIER
+01006  0DB8  85 07                 STA BIGPRODUCT
+01007  0DBA  A5 08                 LDA BIGPRODUCT+1
+01008  0DBC  65 05                 ADC BIGMULTIPLIER+1
+01009  0DBE  85 08                 STA BIGPRODUCT+1
+01010  0DC0  A5 09                 LDA BIGPRODUCT+2
+01011  0DC2  65 06                 ADC BIGMULTIPLIER+2
+01012  0DC4  85 09                 STA BIGPRODUCT+2
+01013  0DC6             @NOADDING
+01014  0DC6  06 04                 ASL BIGMULTIPLIER
+01015  0DC8  26 05                 ROL BIGMULTIPLIER+1
+01016  0DCA  26 06                 ROL BIGMULTIPLIER+2
+01017  0DCC  CA                    DEX
+01018  0DCD  D0 DE                 BNE @LOOP
+01019  0DCF  60                    RTS
+01020  0DD0             
+01021  0DD0             
+01022  0DD0             
+01023  0DD0             
+01024  0DD0             
+01025  0DD0             
+01026  0DD0             COLORRAMINIT 
+01027  0DD0  A2 D8                 LDX #>COLORRAM
+01028  0DD2  8E DB 0D              STX @SM1+2
+01029  0DD5  A2 00                 LDX #$00
+01030  0DD7  A0 04                 LDY #$04        ;BECUASE COLORRAM IS $0400 BYTES LONG
+01031  0DD9             @LOOP1
+01032  0DD9             @SM1
+01033  0DD9  9D 00 D8              STA COLORRAM,X
+01034  0DDC  E8                    INX
+01035  0DDD  D0 FA                 BNE @LOOP1
+01036  0DDF  EE DB 0D              INC @SM1+2
+01037  0DE2  88                    DEY
+01038  0DE3  D0 F4                 BNE @LOOP1
+01039  0DE5  60                    RTS
+01040  0DE6             
+01041  0DE6             CHARRAMINIT 
+01042  0DE6  A2 60                 LDX #>CHARRAM
+01043  0DE8  8E F1 0D              STX @SM1+2
+01044  0DEB  A2 00                 LDX #$00
+01045  0DED  A0 04                 LDY #$04        ;BECUASE CHARRAM IS $0400 BYTES LONG
+01046  0DEF             @LOOP1
+01047  0DEF             @SM1
+01048  0DEF  9D 00 60              STA CHARRAM,X
+01049  0DF2  E8                    INX
+01050  0DF3  D0 FA                 BNE @LOOP1
+01051  0DF5  EE F1 0D              INC @SM1+2
+01052  0DF8  88                    DEY
+01053  0DF9  D0 F4                 BNE @LOOP1
+01054  0DFB  60                    RTS
+01055  0DFC             
+01056  0DFC             BITMAPINIT 
+01057  0DFC  A2 40                 LDX #>BITMAP
+01058  0DFE  8E 07 0E              STX @SM1+2
+01059  0E01  A2 00                 LDX #$00
+01060  0E03  A0 20                 LDY #$20        ;BECUASE BITMAP IS $2000 BYTES LONG
+01061  0E05             @LOOP1
+01062  0E05             @SM1
+01063  0E05  9D 00 40              STA BITMAP,X
+01064  0E08  E8                    INX
+01065  0E09  D0 FA                 BNE @LOOP1
+01066  0E0B  EE 07 0E              INC @SM1+2
+01067  0E0E  88                    DEY
+01068  0E0F  D0 F4                 BNE @LOOP1
+01069  0E11  60                    RTS
+01070  0E12             
+01071  0E12                        
+01072  0E12             
+
+******* 14 Label(s) *******
+BigMultiply = $0DA3 
+BitmapInit = $0DFC 
+CharRamInit = $0DE6 
+ColorRamInit = $0DD0 
+Divide = $0D34 
+Draw2DPoly = $0859 
+loop = $084B 
+MP1x = $0D28 
+MP1y = $0D2A 
+MP2x = $0D2C 
+MP2y = $0D2E 
+MP3x = $0D30 
+MP3y = $0D32 
+Multiply = $0D78 
+
+******* 5 Unused label(s) *******
+@AdjustLSLE
+@ArrangeInnerLoop
+@ArrangeOuterLoop
+@BottomMainLoop
+@CLBig
+@CLDone
+@CLProbablyOnScreen
+@DivisorNotZero
+@DoEndEdgeShift
+@DoStartEdgeShift
+@DrawLine
+@EndEdgeShift
+@EndEdgeShiftLoop
+@FirstCharBig
+@FirstCharDone
+@FirstCharProbablyOnScreen
+@L1
+@L2
+@LastCharBig
+@LastCharDone
+@LastCharProbablyOnScreen
+@LEAboveLEg
+@LEBelowLEg
+@LLBig
+@LLDone
+@LLDone2
+@LLProbablyOnScreen
+@LLProbablyOnScreen2
+@loop
+@loop
+@loop1
+@loop1
+@loop1
+@LSAboveLSg
+@LSAddDone
+@LSBelowLSg
+@LSgBelowLEg
+@MainDraw
+@MLEDone
+@MLEDone2
+@MLEnSet
+@MLEnSet2
+@MLSDone
+@MLSDone2
+@MLSnSet
+@MLSnSet2
+@NoAdding
+@NoAdding
+@NoStartEdgeShift
+@OneCharLine
+@OneCharLineLoop
+@OneCharLineShift
+@P1xAboveLEg
+@P1xAboveLSg
+@P1xBelowLEg
+@P1xBelowLSg
+@skip1
+@skip2
+@skip3
+@skip4
+@skip5
+@skip6
+@SM1
+@SM1
+@SM1
+@SM1
+@SM2
+@StartEdgeShiftLoop
+@SubFromLS
+@Test
+@TopMainFinished
+@TopMainLoop
+CharRamInit
+ColorRamInit
+MP1x
+MP2x
+MP3x
+
+******* 38 Variable(s) *******
+@CL  = $0030
+@ColsRemaining  = $0005
+@f  = $002C
+@FirstCol  = $0004
+@LastDot  = $0006
+@LE  = $001F
+@LEg  = $002D
+@LL  = $002F
+@LS  = $001C
+@LSg  = $0029
+@MLE  = $0025
+@MLEn  = $002B
+@MLS  = $0022
+@MLSn  = $0028
+@NUM1  = $0002
+@NUM2  = $0005
+@P  = $0031
+@P1x  = $0010
+@P1y  = $0012
+@P2x  = $0014
+@P2y  = $0016
+@P3x  = $0018
+@P3y  = $001A
+@ProductSmall  = $000A
+@REM  = $0007
+@StartMaskBuffer  = $0007
+BigMultiplicand  = $0002
+BigMultiplier  = $0004
+BigProduct  = $0007
+Bitmap  = $4000
+CharRam  = $6000
+ColorRam  = $D800
+Dividend  = $0002
+Divisor  = $0005
+Multiplicand  = $0002
+Multiplier  = $0005
+Product  = $0006
+tgt_c64  = $0001
+******* -70 Unused variables(s) *******
+@ProductSmall
+tgt_c64
+

@@ -1,0 +1,68 @@
+Important: LS and LE from $8000 to 80a0 are visible, $8000 is not centre, but the leftmost column of screen!
+
+
+
+
+Big Polgon for sort testing, may be deppreciated for drawing, because of new LS and LE def., see top of this document:
+
+@MP1x
+        byte $00        ;<P1x
+        byte $00        ;>P1x
+@MP1y
+        byte $00        ;<P1y
+        byte $00        ;>P1y
+@MP2x
+        byte $00        ;<P2x
+        byte $00        ;>P2x
+@MP2y
+        byte $ff        ;<P2y
+        byte $ff        ;>P2y
+@MP3x
+        byte $ff        ;<P3x
+        byte $ff        ;>P3x
+@MP3y
+        byte $ff        ;<P3y
+        byte $ff        ;>P3y
+
+Top middle, left middle and bottom left, all a bit beyond the screen:
+
+@MP1x
+        byte $50        ;<P1x
+        byte $80        ;>P1x
+@MP1y
+        byte $f0        ;<P1y
+        byte $7f        ;>P1y
+@MP2x
+        byte $f0        ;<P2x
+        byte $7f        ;>P2x
+@MP2y
+        byte $74        ;<P2y
+        byte $80        ;>P2y
+@MP3x
+        byte $af        ;<P3x
+        byte $80        ;>P3x
+@MP3y
+        byte $d7        ;<P3y
+        byte $80        ;>P3y
+
+
+Like a Play button, but a bit skewed (top to the left)
+
+@MP1x
+        byte 59         ;<P1x
+        byte $80        ;>P1x
+@MP1y
+        byte 32         ;<P1y
+        byte $80        ;>P1y
+@MP2x
+        byte 121        ;<P2x
+        byte $80        ;>P2x
+@MP2y
+        byte 110        ;<P2y
+        byte $80        ;>P2y
+@MP3x
+        byte 56         ;<P3x
+        byte $80        ;>P3x
+@MP3y
+        byte 149        ;<P3y
+        byte $80        ;>P3y

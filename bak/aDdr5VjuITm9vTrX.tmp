@@ -1,0 +1,14 @@
+*=$1000
+; Fragment of Main.asm
+
+        jsr VramInit              
+        jsr ColorMemInit   
+        lda #$69        ;Use #$00 in final product
+        jsr CharMemInit
+loop
+        jsr Draw2DPoly
+        inc $d021
+        ;jsr Multiply        
+        jmp loop     
+        
+        
